@@ -1,0 +1,85 @@
+
+<launch>
+  <!--
+  NOTE: You'll need to bring up something that publishes sensor data (see
+  rosstage), something that publishes a map (see map_server), and something to
+  visualize a costmap (see nav_view), to see things work.
+  Also, on a real robot, you'd want to set the "use_sim_time" parameter to false, or just not set it.
+  -->
+
+  <!--False for "six_wheel" or True for "four_wheel"  -->
+  <arg name="is_four_wd" default="true"  />
+
+  <!-- True if running simulation, not the real car -->
+  <arg name="is_simulation" default="true" />
+
+  <!-- Select Real Hardware Sensors to Enable -->
+  <arg name="wheel_odometry" default="false"  />
+  <arg name="imu_odometry" default="false"  />
+  <arg name="laser_scanner_odometry" default="false"  />
+
+<!-- Odometry, Static Transforms -->
+     <include file="$(find odometry_agent)/launch/odometry_agent.launch">
+        <arg name="is_simulation" value="$(arg is_simulation)" />
+        <arg name="is_four_wd" value="$(arg is_four_wd)" />
+        <arg name="wheel_odometry" value="$(arg wheel_odometry)" />
+        <arg name="imu_odometry" value="$(arg imu_odometry)" />
+        <arg name="laser_scanner_odometry" value="$(arg laser_scanner_odometry)" />
+    </include>
+
+  <!-- Launch Twist to Steerforce converter -->
+  <group if="$(arg is_four_wd)">
+    <group if="$(arg is_simulation)">
+      <include file="$(find steerforce_conv)/launch/steerforce_converter.launch"/>
+    </group>
+  </group>
+  <!-- Load SLAMs or Static Map -->
+
+  <!-- Hector SLAM -->
+<!--      <include file="$(find odometry_agent)/launch/hector_configuration.launch">
+        <arg name="scan_topic_name" value="scan"/>
+    </include>
+ -->
+  <!-- Cartographer SLAM  -->
+  <include file="$(find cartographer_ros)/launch/cartographer_start.launch" />
+
+  <!-- Use Static Map -->
+<!--   <arg name="map_file" value="$(find odometry_agent)/maps/racetracklaser.yaml">
+  </arg>
+  <node pkg="map_server" type="map_server" name="map_server" args="$(arg map_file)">
+  </node> -->
+
+  <!-- Load move_base or locomotor -->
+
+  <!-- <param name="/use_sim_time" value="false"/> -->
+
+   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <!-- Load Costmap parameters -->
+    <rosparam file="$(find pose_follower)/cfg/carlike/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find pose_follower)/cfg/carlike/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find pose_follower)/cfg/carlike/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find pose_follower)/cfg/carlike/global_costmap_params.yaml" command="load" />
+
+    <!-- Select Global Planner -->
+    <param name="base_global_planner" value="SBPLLatticePlanner" />
+    <param name="SBPLLatticePlanner/primitive_filename" value="$(find sbpl_lattice_planner)/matlab/mprim/unicycle_noturninplace.mprim" />
+    <!-- <param name="base_global_planner" value="global_planner/GlobalPlanner" /> -->
+
+
+    <!-- Select Local Planner -->
+    <!-- <param name="base_local_planner" value="mpc_local_planner_mb/MPCLocalPlannerMBROS" /> -->
+    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
+    <rosparam file="$(find pose_follower)/cfg/carlike/teb_local_planner_params.yaml" command="load" />
+
+<!--     <param name="base_local_planner" value="eband_local_planner/EBandPlannerROS" />
+    <param name="base_local_planner" value="rsband_local_planner/RSBandPlannerROS" />
+    <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
+    <rosparam file="$(find pose_follower)/cfg/carlike/teb_local_planner_params.yaml" command="load" />
+ -->
+      <!-- Remap topics -->
+    <remap from="odom" to="/odometry/filtered" />
+    <remap from="goal" to="/move_base_simple/goal" />
+  </node>
+
+</launch>

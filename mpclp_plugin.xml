@@ -1,0 +1,9 @@
+<class_libraries>
+  <library path="lib/libmpc_local_planner_mb">
+  <class name="mpc_local_planner_mb/MPCLocalPlannerMBROS" type="mpc_local_planner_mb::MPCLocalPlannerMBROS" base_class_type="nav_core::BaseLocalPlanner">
+    <description>
+      MPC Plugin for BaseLocalPlanner.
+    </description>
+  </class>
+</library>
+</class_libraries>

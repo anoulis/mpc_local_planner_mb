@@ -75,6 +75,7 @@ namespace mpc_local_planner_mb {
          * @return True if achieved, false otherwise
          */
         bool isGoalReached();
+        int get_thread_numbers();
 
         bool isInitialized() {
             return initialized_;
@@ -116,20 +117,23 @@ namespace mpc_local_planner_mb {
         // tf::TransformListener _tf_listener;
 
         // for visualisation, publishers of global and local plan
-        ros::Publisher g_plan_pub_, l_plan_pub_, vel_pub_;
-        ros::Subscriber odom_sub;
-        ros::Subscriber _sub_odom, _sub_path, _sub_goal, _sub_amcl;
+        ros::Publisher g_plan_pub_, l_plan_pub_;
+        // ros::Subscriber odom_sub;
+        // ros::Subscriber _sub_odom, _sub_path, _sub_goal, _sub_amcl;
 
 
-        ros::Publisher _pub_ref_path_odom, _pub_mpc_traj, _pub_ref_path_baselink;
+        ros::Publisher _pub_ref_path_odom, _pub_mpc_traj, _pub_ref_path_baselink, _pub_twist;
+        ros::Subscriber _sub_goal;
 
         // costmap_2d::Costmap2DROS* costmap_ros_;
 
         geometry_msgs::Point _goal_pos;
+        std::string odom_topic_ = "/odom";
 
-        bool setup_;
-        string _globalPath_topic, _goal_topic;
-        string _map_frame, _odom_frame, _car_frame;
+        // bool setup_;
+        // string _globalPath_topic, _goal_topic;
+        // string _map_frame, _odom_frame, _car_frame;
+        string _goal_topic;
 
 
         // tf::Stamped<tf::Pose> current_pose_;
@@ -139,39 +143,38 @@ namespace mpc_local_planner_mb {
         tf2_ros::TransformListener* tfListener_;
         //! costmap ROS wrapper ptr
         costmap_2d::Costmap2DROS* costmap_ros_;
-        std::string global_frame;
+        // std::string global_frame;
 
         bool initialized_;
-        bool debug_;
+        // bool debug_;
 
         base_local_planner::OdometryHelperRos odom_helper_;
 
         base_local_planner::LatchedStopRotateController latchedStopRotateController_;
 
-        std::string odom_topic_ = "/odom";
-
         std::vector<geometry_msgs::PoseStamped> global_plan_;
 
         base_local_planner::LocalPlannerUtil planner_util_;
-        ros::Publisher _pub_odompath, _pub_twist, _pub_ackermann, _pub_mpctraj;
+        // ros::Publisher _pub_odompath, _pub_twist, _pub_ackermann, _pub_mpctraj;
 
 
-        Eigen::Vector3f vel;
-        float  DT;
-        float pathLength_;
+        // Eigen::Vector3f vel;
+        // float  DT;
+        // float pathLength_;
         MPC mpc_solver;
         map<string, double> _mpc_params;
         double _mpc_steps, _ref_cte, _ref_epsi, _ref_vel, _w_cte, _w_epsi, _w_vel,
         _w_delta, _w_accel, _w_delta_d, _w_accel_d, _max_steering, _max_throttle, _bound_value;
-        double _Lf, _dt, _steering, _throttle, _speed, _max_speed;
-        double _pathLength, _goalRadius, _waypointsDist;
-        int _controller_freq, _downSampling, _thread_numbers;
-        bool _goal_received, _goal_reached, _path_computed, _pub_twist_flag, _debug_info, _delay_mode;
+        double _Lf, _dt, _steering, _throttle, _speed, _max_speed, _goalRadius;
+        // double _pathLength, _goalRadius, _waypointsDist;
+        // int _controller_freq, _downSampling, _thread_numbers;
+        int _controller_freq, _thread_numbers;
+        bool _goal_received, _goal_reached, _debug_info, _delay_mode;
+
+        // bool _goal_received, _goal_reached, _path_computed, _pub_twist_flag, _debug_info, _delay_mode;
 
 
-        bool _is_close_enough;
 
-        std::vector<geometry_msgs::PoseStamped> temp_original_plan, temp_transformed_plan, final_transfromed_plan;
 
     };
 }; //MCP_LOCAL_PLANNER_MB_MPC_LOCAL_PLANNER_H

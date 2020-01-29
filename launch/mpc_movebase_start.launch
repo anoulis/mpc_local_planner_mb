@@ -67,9 +67,11 @@
 
 
     <!-- Select Local Planner -->
-    <!-- <param name="base_local_planner" value="mpc_local_planner_mb/MPCLocalPlannerMBROS" /> -->
-    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
-    <rosparam file="$(find pose_follower)/cfg/carlike/teb_local_planner_params.yaml" command="load" />
+    <param name="base_local_planner" value="mpc_local_planner_mb/MPCLocalPlannerMBROS" />
+    <rosparam file="$(find mpc_local_planner_mb)/cfg/mpc_params.yaml" command="load" />
+
+    <!-- <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
+    <rosparam file="$(find pose_follower)/cfg/carlike/teb_local_planner_params.yaml" command="load" /> -->
 
 <!--     <param name="base_local_planner" value="eband_local_planner/EBandPlannerROS" />
     <param name="base_local_planner" value="rsband_local_planner/RSBandPlannerROS" />

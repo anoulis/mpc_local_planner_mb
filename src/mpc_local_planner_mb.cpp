@@ -22,14 +22,13 @@ using namespace Eigen;
 namespace mpc_local_planner_mb {
 
     MPCLocalPlannerMBROS::MPCLocalPlannerMBROS():initialized_(false),
-        odom_helper_("odom"), setup_(false), debug_(true), _is_close_enough(false){
+        odom_helper_("odom"){
 
     }
     MPCLocalPlannerMBROS::~MPCLocalPlannerMBROS() {}
 
 
     void MPCLocalPlannerMBROS::initialize(std::string name,
-                                           // tf::TransformListener *tf,
                                            tf2_ros::Buffer* tfBuffer,
                                            costmap_2d::Costmap2DROS *costmap_ros)
     {
@@ -37,7 +36,6 @@ namespace mpc_local_planner_mb {
 
             ros::NodeHandle private_nh("~");
             ros::NodeHandle nh;
-            private_nh.param<bool>("debug", debug_, false);
             private_nh.param<std::string>("goal_topic", _goal_topic, "/move_base_simple/goal" );
 
             _pub_ref_path_odom = private_nh.advertise<nav_msgs::Path>("/move_base_MPCLocalPlanner/mpc_reference_path_odom", 1);
@@ -48,16 +46,14 @@ namespace mpc_local_planner_mb {
 
 
             //Parameters for control loop
-            private_nh.param("thread_numbers", _thread_numbers, 2); // number of threads for this ROS node
-            private_nh.param("pub_twist_cmd", _pub_twist_flag, true);
+            // private_nh.param("thread_numbers", _thread_numbers, 2); // number of threads for this ROS node
             private_nh.param("debug_info", _debug_info, false);
-            private_nh.param("delay_mode", _delay_mode, true);
+            private_nh.param("delay_mode", _delay_mode,false);
             private_nh.param("max_speed", _max_speed, 6.0); // unit: m/s
-            private_nh.param("waypoints_dist", _waypointsDist, -1.0); // unit: m
-            private_nh.param("path_length", _pathLength, 8.0); // unit: m
-            private_nh.param("goal_radius", _goalRadius, 0.5); // unit: m
+            private_nh.param("goal_radius", _goalRadius, 0.2); // unit: m
             private_nh.param("controller_freq", _controller_freq, 10);
             private_nh.param("vehicle_Lf", _Lf, 0.25); // distance between the front of the vehicle and its center of gravity
+
             _dt = double(1.0/_controller_freq); // time step duration dt in s
 
             //Parameter for MPC solver
@@ -75,6 +71,7 @@ namespace mpc_local_planner_mb {
             private_nh.param("mpc_max_steering", _max_steering, 0.523); // Maximal steering radian (~30 deg)
             private_nh.param("mpc_max_throttle", _max_throttle, 1.0); // Maximal throttle accel
             private_nh.param("mpc_bound_value", _bound_value, 1.0e3); // Bound value for other variables
+
             //Init parameters for MPC object
             _mpc_params["DT"] = _dt;
             _mpc_params["LF"] = _Lf;
@@ -94,32 +91,37 @@ namespace mpc_local_planner_mb {
             _mpc_params["BOUND"]    = _bound_value;
             mpc_solver.LoadParams(_mpc_params);
 
+            if(_debug_info)
+            {
+                //Display the parameters
+                cout << "\n===== Parameters =====" << endl;
+                cout << "max_speed: "  << _max_speed << endl;
+                cout << "debug_info: "  << _debug_info << endl;
+                cout << "delay_mode: "  << _delay_mode << endl;
+                cout << "vehicle_Lf: "  << _Lf << endl;
+                cout << "frequency: "   << _dt << endl;
+                cout << "mpc_steps: "   << _mpc_steps << endl;
+                cout << "mpc_ref_vel: " << _ref_vel << endl;
+                cout << "mpc_w_cte: "   << _w_cte << endl;
+                cout << "mpc_w_epsi: "  << _w_epsi << endl;
+                cout << "mpc_max_steering: "  << _max_steering << endl;
+            }
+
             //Parameter for topics & Frame name
-
-
-            // tf_ = tf;
-            // costmap_ros_ = costmap_ros;
-            // costmap_ros_->getRobotPose(current_pose_);
-            // store tflistener and costmapROS
             tfBuffer_ = tfBuffer;
             tfListener_ = new tf2_ros::TransformListener(*tfBuffer);
             costmap_ros_ = costmap_ros;
             costmap_ros_->getRobotPose(current_pose_);
 
-            DT = 0.2;
             // make sure to update the costmap we'll use for this cycle
             costmap_2d::Costmap2D* costmap = costmap_ros->getCostmap();
-
-            // planner_util_.initialize(tf, costmap, costmap_ros_->getGlobalFrameID());
             planner_util_.initialize(tfBuffer_, costmap, costmap_ros_->getGlobalFrameID());
 
-
-            // if( private_nh.getParam( "odom_topic", odom_topic_ ))
-            // {
-            //     odom_helper_.setOdomTopic( odom_topic_ );
-            // }
-            odom_helper_.setOdomTopic( odom_topic_ );
-
+            if( private_nh.getParam( "odom_topic", odom_topic_ ))
+            {
+                odom_helper_.setOdomTopic( odom_topic_ );
+            }
+            // odom_helper_.setOdomTopic( odom_topic_ );
 
             initialized_ = true;
         }
@@ -151,21 +153,35 @@ namespace mpc_local_planner_mb {
         {
             //publish an empty plan because we've reached our goal position
             publishZeroVelocity();
+            transformed_plan.clear();
+
         }
         else
         {
-            bool isOk = mpcComputeVelocityCommands(transformed_plan, cmd_vel);
-            if (isOk)
-            {
-                //publishGlobalPlan(transformed_plan);
+            if(!transformed_plan.empty() && _goal_received){
+                bool isOk = mpcComputeVelocityCommands(transformed_plan, cmd_vel);
+                if (isOk)
+                {
+                    //publishGlobalPlan(transformed_plan);
+                }
+                else
+                {
+                    ROS_WARN_NAMED("mpc_local_planner", "mpc planner failed to produce path.");
+                    std::vector<geometry_msgs::PoseStamped> empty_plan;
+                    //publishGlobalPlan(empty_plan);
+                }
+                return isOk;
+
+            }else{
+                if(transformed_plan.empty()){
+                    ROS_WARN_NAMED("mpc_local_planner", "MPC tries to compute vel without a reference global plan.");
+                }
+                if(!_goal_received){
+                    ROS_WARN_NAMED("mpc_local_planner", "MPC tries to compute vel without a received goal.");
+                }
+
             }
-            else
-            {
-                ROS_WARN_NAMED("mpc_local_planner", "mpc planner failed to produce path.");
-                std::vector<geometry_msgs::PoseStamped> empty_plan;
-                //publishGlobalPlan(empty_plan);
-            }
-            return isOk;
+
         }
     }
 
@@ -207,9 +223,6 @@ namespace mpc_local_planner_mb {
         // double psi = tf2::getYaw(odom.pose.pose.orientation);
         double psi = tf2::getYaw(robot_pose.pose.orientation);
 
-        // cout << "ROT: " << odom.getRotation()<< endl;
-
-
         const double steering = _steering;  // radian
         const double throttle = _throttle; // accel: >0; brake: <0
         // Waypoints related parameters
@@ -234,7 +247,6 @@ namespace mpc_local_planner_mb {
             waypoints_y.push_back( dy * cospsi - dx * sinpsi);
             tempPose.pose.position.x = dx * cospsi + dy * sinpsi;
             tempPose.pose.position.y = dy * cospsi - dx * sinpsi;
-
             _vehicle_ref_traj.poses.push_back(tempPose);
         }
         _pub_ref_path_baselink.publish(_vehicle_ref_traj);
@@ -245,109 +257,54 @@ namespace mpc_local_planner_mb {
             return true;
 
         }
-        if (size_of_path <= 16){
-            _is_close_enough = true;
-            return true;
-        }
-        _is_close_enough = false;
         double* ptrx = &waypoints_x[0];
         double* ptry = &waypoints_y[0];
         Eigen::Map<Eigen::VectorXd> waypoints_x_eig(ptrx, size_of_path);
         Eigen::Map<Eigen::VectorXd> waypoints_y_eig(ptry, size_of_path);
         // calculate cte and epsi
         auto coeffs = polyfit(waypoints_x_eig, waypoints_y_eig, 3);
-        //
-        // VectorXd x_veh(path.size());
-        // VectorXd y_veh(path.size());
-        // for(int i = 0; i < path.size(); i++)
-        // {
-        //     const double dx = path[i].pose.position.x - px;
-        //     const double dy = path[i].pose.position.y - py;
-        //     x_veh[i] = dx * cospsi + dy * sinpsi;
-        //     y_veh[i] = dy * cospsi - dx * sinpsi;
-        // }
-        //
-        // // Fit waypoints
-        // auto coeffs = polyfit(x_veh, y_veh, 3);
-
-        /* The cross track error is calculated by evaluating at polynomial at x, f(x)
-        and subtracting y.
-        double cte = polyeval(coeffs, x) - y;
-        Due to the sign starting at 0, the orientation error is -f'(x).
-        derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
-        double epsi = psi - atan(coeffs[1]);*/
         double cte = polyeval(coeffs, 0);
         double epsi = atan(coeffs[1]);
-        if (debug_){
-            std::cout<<"psi is"<<std::endl;
-            std::cout<<"path size is"<<path.size()<<std::endl;
-            std::cout<<"waypoints x size is"<<waypoints_x.size()<<std::endl;
-            std::cout<<"coeffs is "<<coeffs<<std::endl;
-            std::cout<<"cte is"<<cte<<std::endl;
-            std::cout<<"epsi is"<<epsi<<std::endl;
+        if (_debug_info){
+            cout<<"psi is"<<endl;
+            cout<<"path size is"<<path.size()<<endl;
+            cout<<"waypoints x size is"<<waypoints_x.size()<<endl;
+            cout<<"coeffs is "<<coeffs<<endl;
+            cout<<"cte is"<<cte<<endl;
+            cout<<"epsi is"<<epsi<<endl;
         }
         Eigen::VectorXd state(6);
-        state << 0, 0, 0, v, cte, epsi;
-        // std::vector<double> vars;
-        // vars.clear();
-        // vars = mpc_solver.Solve(state, coeffs);
-        // cout << "epsi: " << epsi<< endl;
-        // if (vars.size() < 2){
-        //     return false;
-        // }
-        // std::vector<double> mpc_x_vals;
-        // std::vector<double> mpc_y_vals;
-        // mpc_x_vals.clear();
-        // mpc_y_vals.clear();
-        // for (int i = 2; i < vars.size(); i ++) {
-        //   if (i%2 == 0) {
-        //     mpc_x_vals.push_back(vars[i]);
-        //   }
-        //   else {
-        //     mpc_y_vals.push_back(vars[i]);
-        //   }
-        // }
-        //
-        // // Display the MPC predicted trajectory
-        // nav_msgs::Path _mpc_predi_traj;
-        // _mpc_predi_traj.header.frame_id = "base_link"; // points in car coordinate
-        // _mpc_predi_traj.header.stamp = ros::Time::now();
-        // tempPose.header = _mpc_predi_traj.header;
-        // for(int i = 2; i < mpc_x_vals.size() - 3; i++)
-        // {
-        //     tempPose.pose.position.x = mpc_x_vals[i];
-        //     tempPose.pose.position.y = mpc_y_vals[i];
-        //     tempPose.pose.orientation.w = 1.0;
-        //     _mpc_predi_traj.poses.push_back(tempPose);
-        // }
-        // _pub_mpc_traj.publish(_mpc_predi_traj);
-        //
-        // double steer_value = 0.0, throttle_value = 0.0;
-        // steer_value = vars[0];
-        // throttle_value = vars[1];
-        // ROS_INFO("Steer value and throttle value is, %lf , %lf", steer_value, throttle_value);
-        // cmd_vel.linear.x = vel[0] + vars[1] * DT;
-        // double radius = 0.0;
-        // if (fabs(tan(steer_value)) <= 1e-2){
-        //     radius = 1e5;
-        // } else {
-        //     radius = 0.5 / tan(steer_value);}
-        // cmd_vel.angular.z = std::max(-1.0, std::min(1.0, (cmd_vel.linear.x / radius)));
-        // cmd_vel.linear.x = std::min(0.2, cmd_vel.linear.x);
-        // ROS_INFO("v value and z value is, %lf , %lf", cmd_vel.linear.x, cmd_vel.angular.z);
+        if(_delay_mode)
+        {
+            // Kinematic model is used to predict vehicle state at the actual
+            // moment of control (current time + delay dt)
+            const double px_act = v * _dt;
+            const double py_act = 0;
+            const double psi_act = v * steering * _dt / _Lf;
+            const double v_act = v + throttle * _dt;
+            const double cte_act = cte + v * sin(epsi) * _dt;
+            const double epsi_act = -epsi + psi_act;
+            state << px_act, py_act, psi_act, v_act, cte_act, epsi_act;
+        }
+        else
+        {
+            state << 0, 0, 0, v, cte, epsi;
+        }
+        // state << 0, 0, 0, v, cte, epsi;
+
         // Solve MPC Problem
         vector<double> mpc_results = mpc_solver.Solve(state, coeffs);
 
         // MPC result (all described in car frame)
         _steering = mpc_results[0]; // radian
         _throttle = mpc_results[1]; // acceleration
-        _speed = v + _throttle*DT;  // speed
+        _speed = v + _throttle*_dt;  // speed
         if (_speed >= _max_speed)
             _speed = _max_speed;
         if(_speed <= 0.0)
             _speed = 0.0;
 
-        if(debug_)
+        if(_debug_info)
         {
             cout << "\n\nDEBUG" << endl;
             cout << "psi: " << psi << endl;
@@ -362,8 +319,6 @@ namespace mpc_local_planner_mb {
         }
 
         // Display the MPC predicted trajectory
-
-        // _mpc_predi_traj = nav_msgs::Path();
         nav_msgs::Path _mpc_predi_traj;
         _mpc_predi_traj.header.frame_id = "base_link"; // points in car coordinate
         _mpc_predi_traj.header.stamp = ros::Time::now();
@@ -379,11 +334,9 @@ namespace mpc_local_planner_mb {
         // publish the mpc trajectory
         _pub_mpc_traj.publish(_mpc_predi_traj);
 
-
         cmd_vel.linear.x = _speed;
         cmd_vel.angular.z = _steering;
         // _pub_twist.publish(cmd_vel);
-
         return true;
     }
 
@@ -392,7 +345,6 @@ namespace mpc_local_planner_mb {
             ROS_ERROR("Planner utils have not been initialized, please call initialize() first");
             return false;
         }
-        _is_close_enough = false;
         return planner_util_.setPlan(orig_global_plan);
     }
 
@@ -403,7 +355,8 @@ namespace mpc_local_planner_mb {
         _goal_pos = goalMsg->pose.position;
         _goal_received = true;
         _goal_reached = false;
-        ROS_INFO("Goal Received :goalCB!");
+        ROS_INFO_NAMED("mpc_local_planner", "MPC received a Goal.");
+
     }
 
     bool MPCLocalPlannerMBROS::isGoalReached(){
@@ -415,11 +368,10 @@ namespace mpc_local_planner_mb {
             ROS_ERROR("Could not get robot pose");
             return false;
         }
-
         bool ret = isInGoalArea();
         if(ret) {
             publishZeroVelocity();
-            ROS_INFO("Goal reached");
+            ROS_INFO_NAMED("mpc_local_planner", "MPC reached the Goal.");
             return true;
         } else {
             return false;
@@ -433,6 +385,12 @@ namespace mpc_local_planner_mb {
       cmd_vel.linear.y = 0.0;
       cmd_vel.angular.z = 0.0;
       _pub_twist.publish(cmd_vel);
+    }
+
+    // Public: return _thread_numbers
+    int MPCLocalPlannerMBROS::get_thread_numbers()
+    {
+        return _thread_numbers;
     }
 
 
@@ -449,7 +407,6 @@ namespace mpc_local_planner_mb {
             {
                 _goal_reached = true;
                 _goal_received = false;
-                _path_computed = false;
                 // ROS_INFO("Goal Reached !");
                 publishZeroVelocity();
                 return true;
@@ -499,10 +456,10 @@ namespace mpc_local_planner_mb {
 int main(int argc, char** argv)
 {
  ros::init(argc, argv, "mpc_local_planner_node");
- // MPC mpc_solver;
+
 
  ROS_INFO("Waiting for global path msgs ~");
- ros::AsyncSpinner spinner(2); // Use multi threads
+ ros::AsyncSpinner spinner(4); // Use multi threads
  spinner.start();
  ros::waitForShutdown();
  return 0;

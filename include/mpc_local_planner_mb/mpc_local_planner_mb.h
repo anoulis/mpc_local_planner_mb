@@ -165,7 +165,7 @@ namespace mpc_local_planner_mb {
         map<string, double> _mpc_params;
         double _mpc_steps, _ref_cte, _ref_epsi, _ref_vel, _w_cte, _w_epsi, _w_vel,
         _w_delta, _w_accel, _w_delta_d, _w_accel_d, _max_steering, _max_throttle, _bound_value;
-        double _Lf, _dt, _steering, _throttle, _speed, _max_speed, _goalRadius;
+        double _Lf, _dt, _steering, _throttle, _speed, _max_speed, _min_speed, _goalRadius;
         // double _pathLength, _goalRadius, _waypointsDist;
         // int _controller_freq, _downSampling, _thread_numbers;
         int _controller_freq, _thread_numbers;

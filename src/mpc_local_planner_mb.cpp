@@ -50,6 +50,7 @@ namespace mpc_local_planner_mb {
             private_nh.param("debug_info", _debug_info, false);
             private_nh.param("delay_mode", _delay_mode,false);
             private_nh.param("max_speed", _max_speed, 6.0); // unit: m/s
+            private_nh.param("min_speed", _max_speed, 0.1); // unit: m/s
             private_nh.param("goal_radius", _goalRadius, 0.2); // unit: m
             private_nh.param("controller_freq", _controller_freq, 10);
             private_nh.param("vehicle_Lf", _Lf, 0.25); // distance between the front of the vehicle and its center of gravity
@@ -96,6 +97,7 @@ namespace mpc_local_planner_mb {
                 //Display the parameters
                 cout << "\n===== Parameters =====" << endl;
                 cout << "max_speed: "  << _max_speed << endl;
+                cout << "min_speed: "  << _min_speed << endl;
                 cout << "debug_info: "  << _debug_info << endl;
                 cout << "delay_mode: "  << _delay_mode << endl;
                 cout << "vehicle_Lf: "  << _Lf << endl;
@@ -301,6 +303,8 @@ namespace mpc_local_planner_mb {
         _speed = v + _throttle*_dt;  // speed
         if (_speed >= _max_speed)
             _speed = _max_speed;
+        if (_speed < _min_speed)
+            _speed = _min_speed;
         if(_speed <= 0.0)
             _speed = 0.0;
 

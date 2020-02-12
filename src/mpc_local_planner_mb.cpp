@@ -50,7 +50,7 @@ namespace mpc_local_planner_mb {
             private_nh.param("debug_info", _debug_info, false);
             private_nh.param("delay_mode", _delay_mode,false);
             private_nh.param("max_speed", _max_speed, 6.0); // unit: m/s
-            private_nh.param("min_speed", _max_speed, 0.1); // unit: m/s
+            private_nh.param("min_speed", _min_speed, 0.1); // unit: m/s
             private_nh.param("goal_radius", _goalRadius, 0.2); // unit: m
             private_nh.param("controller_freq", _controller_freq, 10);
             private_nh.param("vehicle_Lf", _Lf, 0.25); // distance between the front of the vehicle and its center of gravity

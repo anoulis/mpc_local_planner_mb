@@ -2,7 +2,7 @@
 debug_info: true
 delay_mode: true
 max_speed: 2.0 # unit: m/s
-max_speed: 0.4 # unit: m/s
+min_speed: 0.4 # unit: m/s
 goal_radius: 0.2 # unit: m
 controller_freq: 10
 vehicle_Lf: 0.25 # distance between the front of the vehicle and its center of gravity

@@ -1,8 +1,8 @@
 # Parameters for control loop
 debug_info: true
 delay_mode: true
-max_speed: 2.0 # unit: m/s
-min_speed: 0.4 # unit: m/s
+max_speed: 4.0 # unit: m/s
+min_speed: 0.4 # unit: m/s (for getting out of inertia)
 goal_radius: 0.2 # unit: m
 controller_freq: 10
 vehicle_Lf: 0.25 # distance between the front of the vehicle and its center of gravity
@@ -12,7 +12,7 @@ vehicle_Lf: 0.25 # distance between the front of the vehicle and its center of g
 mpc_steps: 20.0
 mpc_ref_cte: 0.0
 mpc_ref_epsi: 0.0
-mpc_ref_vel: 0.5
+mpc_ref_vel: 1.0
 mpc_w_cte: 100.0
 mpc_w_epsi: 100.0
 mpc_w_vel: 100.0

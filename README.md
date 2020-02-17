@@ -17,13 +17,17 @@ Put this in your launch file like a normal move_base plugin and load the params 
 
 * debug_info: For internal ros warnings info for computations of steering, speed, cte and more values.
 * delay_mode: Added a delay mode equals to differential time(dt)
-* max_speed: Max speed valye
+* max_speed: Max speed value
 * min_speed: Min speed value
 * goal_radius: value for goal radius (in meters)
 * controller_freq: Value to syschronize the planner with control loop of move base, (in our case didn't solve the problem of control loop failure)
 * mpc_max_steering: Value of the maximum available steering
 * mpc_max_throttle: Value for the maximum accelaration
 * mpc_steps: Value for setting the horizon of MPC ( really big means high computation)
+* mpc_ref_cte + mpc_w_cte: values for cte error caclculation in cost function
+* mpc_ref_epsi + mpc_w_epsi: values for orientation error caclculation in cost function
+* mpc_ref_vel + mpc_w_vel: values for speed error caclculation in cost function
+
 
 * The rest values were based in the external reference
 
